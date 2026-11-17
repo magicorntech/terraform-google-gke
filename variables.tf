@@ -126,7 +126,14 @@ variable "secret_manager_enabled" {
   default     = false
 }
 
-# Node pool variables
+# New node pool interface. Null preserves the legacy scalar inputs below;
+# an empty map explicitly creates no separately managed node pools.
+variable "node_pools" {
+  description = "GKE node pools keyed by pool name. Each pool can include a taints list."
+  default     = null
+}
+
+# Deprecated compatibility inputs, used only when node_pools is null.
 variable "main_node_count" {
   description = "Initial total number of nodes in the main node pool across all zones"
   type        = number

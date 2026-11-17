@@ -5,7 +5,7 @@ Magicorn made Terraform Module for Google Cloud Provider
 ```
 module "gke" {
   source         = "magicorntech/gke/google"
-  version        = "0.0.1"
+  version        = "0.1.0"
   tenant         = var.tenant
   name           = var.name
   environment    = var.environment
@@ -28,32 +28,52 @@ module "gke" {
   monitoring_enabled         = true
   secret_manager_enabled     = true
 
-  # Node Configuration
-  main_node_count     = 3
-  main_min_node_count = 1
-  main_max_node_count = 10
-  main_machine_type   = "e2-medium"
-  main_disk_type      = "pd-standard"
-  main_disk_size_gb   = 30
-  main_preemptible    = false
-
-  extra_nodes_deploy   = true
-  extra_node_count     = 0
-  extra_min_node_count = 0
-  extra_max_node_count = 25
-  extra_machine_type   = "e2-medium"
-  extra_disk_type      = "pd-standard"
-  extra_disk_size_gb   = 30
-  extra_preemptible    = true
-
-  tmp_nodes_deploy   = false
-  tmp_node_count     = 0
-  tmp_min_node_count = 0
-  tmp_max_node_count = 25
-  tmp_machine_type   = "t2a-medium"
-  tmp_disk_type      = "pd-standard"
-  tmp_disk_size_gb   = 30
-  tmp_preemptible    = true
+  # Node Configuration (set null to use legacy inputs, {} to create no pools)
+  node_pools = {
+    main = {
+      machine_type = "e2-medium"
+      disk_type    = "pd-standard"
+      disk_size_gb = 30
+      preemptible  = false
+      scaling_config = {
+        desired = 3
+        min     = 1
+        max     = 10
+      }
+    }
+    extra = {
+      machine_type = "e2-medium"
+      disk_type    = "pd-standard"
+      disk_size_gb = 30
+      preemptible  = true
+      scaling_config = {
+        desired = 0
+        min     = 0
+        max     = 25
+      }
+      taints = [{
+        key    = "node-type"
+        value  = "spot"
+        effect = "NO_SCHEDULE"
+      }]
+    }
+    tmp = {
+      machine_type = "t2a-medium"
+      disk_type    = "pd-standard"
+      disk_size_gb = 30
+      preemptible  = true
+      scaling_config = {
+        desired = 0
+        min     = 0
+        max     = 25
+      }
+      taints = [{
+        key    = "node-type"
+        value  = "spot"
+        effect = "NO_SCHEDULE"
+      }]
+    }
+  }
 
   # Workload Identity (optional)
   enable_workload_identity   = false
@@ -64,5 +84,6 @@ module "gke" {
 ## Notes
 1) Pair with the Magicorn `google-vpc` module. Private subnets carry GKE pod/service secondary ranges named `gke-pods` / `gke-services` (or `gke-pods-<region>` when a subnet region is set). Pass those names from `module.vpc.gke_pod_secondary_range_names` and `module.vpc.gke_svc_secondary_range_names`.
 2) `managed_block` is the master CIDR used for webhook firewall rules. `additional_ips` is master authorized networks; set `[]` if unused.
-3) Extra and tmp node pools are tainted `node-type=spot:NoSchedule` when preemptible is true, so only pods that tolerate it are scheduled there.
-4) Project ID and region come from the Google provider. Set `region` only to override the provider region.
+3) Each `node_pools` map key becomes one node pool (`gke-<key>node`). Each pool has its own `scaling_config` (`desired`, `min`, `max`) and optional `taints` list using the same `{ key, value, effect }` shape and effect values as EKS.
+4) Legacy `main_*`, `extra_*`, and `tmp_*` inputs remain supported when `node_pools` is omitted/null. Legacy extra/tmp pools retain their automatic spot taint; map-based pools use only explicitly configured `taints`.
+5) Project ID and region come from the Google provider. Set `region` only to override the provider region.

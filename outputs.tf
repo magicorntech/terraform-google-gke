@@ -42,17 +42,22 @@ output "node_service_account_email" {
 
 output "main_node_pool_name" {
   description = "Name of the main node pool"
-  value       = google_container_node_pool.main.name
+  value       = try(google_container_node_pool.pools["main"].name, null)
 }
 
 output "extra_node_pool_name" {
   description = "Name of the extra node pool"
-  value       = var.extra_nodes_deploy ? google_container_node_pool.extra[0].name : null
+  value       = try(google_container_node_pool.pools["extra"].name, null)
 }
 
 output "tmp_node_pool_name" {
   description = "Name of the temporary node pool"
-  value       = var.tmp_nodes_deploy ? google_container_node_pool.tmp[0].name : null
+  value       = try(google_container_node_pool.pools["tmp"].name, null)
+}
+
+output "node_pool_names" {
+  description = "Map of configured GKE node pool keys to their full names"
+  value       = { for key, pool in google_container_node_pool.pools : key => pool.name }
 }
 
 output "workload_identity_pool" {
